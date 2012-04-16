@@ -1,0 +1,88 @@
+IT2TIA: Music for the chromatically depraved
+
+The orderlist and the pattern pointer list share the same 256-byte region.
+For almost anything you can fit on this damn thing, this is PLENTY.
+
+The orderlist starts from $F000.
+Orders indicate the low byte of the index of the pattern pointer to use.
+Each pattern starts with a length byte indicating number of rows ($00 => 256).
+Pattern pointers are little-endian.
+
+NOTE:
+	EACH ROW *MUST NOT CROSS* A PAGE BOUNDARY!
+	If you find that's what's happened, move it along a bit.
+	There is a way to correct it if you have a large pattern - read on.
+	
+	Also, the length byte must NOT be at $xxFF.
+	Treat it as if it's part of the first row.
+
+Each row contains the following:
+	db list_entry_addr[0]
+	db list_entry_data[0]
+	db list_entry_addr[1]
+	db list_entry_data[1]
+	db list_entry_addr[2]
+	db list_entry_data[2]
+	db row_length ; 0 => 256 ticks, otherwise x => x ticks
+	
+	If you want a dummy to write to, try $80 (it's quickly overwritten).
+	If you want to drop the third entry, try some PatPtr hackery;
+	that is, write ((row_pointer-2)&255) to list_entry.
+	NOTE: For the first row in a pattern, the row starts
+	      at the pattern length byte!
+	
+	The values you want to screw around with are these:
+	
+	AUDC0	equ $15 ; Channel 0 waveform (TIA hardware)
+	AUDC1	equ $16 ; Channel 1 waveform (TIA hardware)
+	
+	Ch0Vol	equ $84 ; Channel 0 playback volume (0..63)
+	Ch1Vol	equ $85 ; Channel 1 playback volume (0..63)
+	Ch0PeP	equ $86 ; Channel 0 pattern period
+	Ch1PeP	equ $87 ; Channel 1 pattern period
+	Ch0PeS	equ $88 ; Channel 0 period slide
+	Ch1PeS	equ $89 ; Channel 1 period slide
+	Ch0VoS	equ $8A ; Channel 0 volume slide
+	Ch1VoS	equ $8B ; Channel 1 volume slide
+	
+	Notes are period values. If you want a note cut, use vol 0.
+	Waveforms are from 0 through 15; when defined, reset the volume to 63.
+	Volumes go from 0 through 63. Remember to clamp 64 to 63.
+	Effects are numbered like above, but the top bit denotes that there
+	will be a parameter byte following.
+	It is HIGHLY RECOMMENDED that the parameter byte is NEVER 00,
+	UNLESS it has some meaning. Otherwise, it will be USELESS.
+	
+	Here's the whole list of stuff at the time of writing.
+	You may want to check the source code.
+	
+	; Output stuff
+	Ch0Wob	equ $80 ; Channel 0 period finetune shift register
+	Ch1Wob	equ $81 ; Channel 1 period finetune shift register
+	Ch0Per	equ $82 ; Channel 0 playback period
+	Ch1Per	equ $83 ; Channel 1 playback period
+	Ch0Vol	equ $84 ; Channel 0 playback volume (0..63)
+	Ch1Vol	equ $85 ; Channel 1 playback volume (0..63)
+	; Pattern things
+	Ch0PeP	equ $86 ; Channel 0 pattern period
+	Ch1PeP	equ $87 ; Channel 1 pattern period
+	Ch0PeS	equ $88 ; Channel 0 period slide
+	Ch1PeS	equ $89 ; Channel 1 period slide
+	Ch0VoS	equ $8A ; Channel 0 volume slide
+	Ch1VoS	equ $8B ; Channel 1 volume slide
+	; Global playback things
+	CurOrd	equ $B0 ; Order
+	CurPat	equ $B1 ; Pattern ( *** UNUSED *** )
+	PatPtr	equ $B2 ; Pointer to pattern
+	OPTabl	equ $B4 ; Order / Pattern Table Pointer
+	CurRow	equ $B6 ; Rows Remaining
+	CurClk	equ $B7 ; Clocks / Ticks Remaining
+	
+	If you need to cross a page boundary, you may need to modify PatPtr
+	while you're at it. A byte is modified after reading its data byte.
+	I advise you only do this on the last write pair in a pattern row.
+	Basically, PatPtr = $FF-6. = $F9.
+	
+	Note that this advise on boundary crossing is probably bollocks,
+	unless LDA (thing),y actually doesn't do what it's supposed to do.
+	
