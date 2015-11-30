@@ -112,6 +112,7 @@ class MIDI:
 		aper = [0 for i in xrange(64)]
 		lins = [-1 for i in xrange(17)]
 		chbend = [0 for i in xrange(17)]
+		chbvol = [0 for i in xrange(17)]
 		acbend = [0x2000 for i in xrange(17)]
 		lbend = [0x2000 for i in xrange(17)]
 		chlast = [False for i in xrange(64)]
@@ -196,13 +197,16 @@ class MIDI:
 								tper[ch] = cper[ch] = n[0]*64
 								vibdat[ch] = 0
 								chbend[lch[ch]] = 0
+								chbvol[lch[ch]] = 64
 								vol = 127
 								if n[2] <= 64:
+									chbvol[lch[ch]] = n[2]
 									vol = midvol(n[2])
 								self.midev(fp, struct.pack(">BBB",((lch[ch]-1)&0x0F)|0x90,lnote[ch],vol))
 								#if vol != 127:
 								#	self.midev(fp, struct.pack(">BBB",((lch[ch]-1)&0x0F)|0xA0,lnote[ch],vol))
 						elif n[2] <= 64:
+							chbvol[lch[ch]] = n[2]
 							vol = midvol(n[2])
 							self.midev(fp, struct.pack(">BBB",((lch[ch]-1)&0x0F)|0xA0,lnote[ch],vol))
 					
@@ -234,6 +238,32 @@ class MIDI:
 				sh = sfp>>4
 				
 				# TODO fineslides
+				if eft in [4,11,12]:
+					# TODO: get order
+					amt = 0
+					if el == 0 or el == 0xF:
+						amt = eh
+					elif eh == 0 or eh == 0xF:
+						amt = -el
+
+					if lnote[ch] >= 0 and (((el == 0 or eh == 0) and self.curtick) or ((el == 0xF or eh == 0xF) and not self.curtick)):
+						# Slide
+						vol = chbvol[lch[ch]] = max(0, min(64, chbvol[lch[ch]] + amt))
+						vol = midvol(vol)
+						self.midev(fp, struct.pack(">BBB",((lch[ch]-1)&0x0F)|0x90,lnote[ch],vol))
+
+
+					# Get other effect.
+					if eft == 11:
+						eft = 8
+					elif eft == 12:
+						eft = 7
+					efp = sfp = leff[ch][eft]
+					el = efp&15
+					eh = efp>>4
+					sl = sfp&15
+					sh = sfp>>4
+
 				if eft == 1:
 					if efp and not self.curtick:
 						self.tpr = efp
@@ -241,13 +271,29 @@ class MIDI:
 					if not self.curtick:
 						self.breakrow = efp
 				elif eft == 5:
-					if self.curtick:
-						sfp = leff[ch][7]
+					if sh >= 0xE:
+						if not self.curtick:
+							if sh == 0xE:
+								chbend[lch[ch]] -= sl
+								cper[ch] -= sl
+							else:
+								chbend[lch[ch]] -= sl*4
+								cper[ch] -= sl*4
+					elif self.curtick:
+						#sfp = leff[ch][7]
 						chbend[lch[ch]] -= sfp*4
 						cper[ch] -= sfp*4
 				elif eft == 6:
-					if self.curtick:
-						sfp = leff[ch][7]
+					if sh >= 0xE:
+						if not self.curtick:
+							if sh == 0xE:
+								chbend[lch[ch]] += sl
+								cper[ch] += sl
+							else:
+								chbend[lch[ch]] += sl*4
+								cper[ch] += sl*4
+					elif self.curtick:
+						#sfp = leff[ch][7]
 						chbend[lch[ch]] += sfp*4
 						cper[ch] += sfp*4
 				elif eft == 7:

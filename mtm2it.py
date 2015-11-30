@@ -225,7 +225,7 @@ for i in xrange(smpnum):
 	# TODO: handle finetune!
 	#print ft
 	
-	outfp.write(struct.pack("<BBB",64,flg,vol))
+	outfp.write(struct.pack("<BBB",64,flg,smp['vol']))
 	outfp.write(smp['name'])
 	outfp.write(struct.pack("<BB",0x01,0x20))
 	outfp.write(struct.pack("<I",smp['len']))
