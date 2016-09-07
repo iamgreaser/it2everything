@@ -288,7 +288,7 @@ class Pattern:
 					m |= 0x80 if c[3] == lc[i][3] and c[4] == lc[i][4] else 0x08
 				
 				if m == 0x00:
-					break
+					continue
 
 				v = i+1
 				if m != lm[i]:
