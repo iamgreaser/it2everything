@@ -252,7 +252,7 @@ class ITPattern(ITFloater):
 					if module.flags & 4:
 						if lins[chidx] != 0:
 							if chn[0] < 120:
-								if lins[chidx]-1 < len(module.smplist):
+								if lins[chidx]-1 < len(module.inslist):
 									module.inslist[lins[chidx]-1].patuse(module,chn[0])
 		
 		self.currently_used = True
